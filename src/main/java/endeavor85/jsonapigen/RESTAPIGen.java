@@ -22,6 +22,7 @@ import javax.ws.rs.QueryParam;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.google.common.reflect.ClassPath;
 
 public class RESTAPIGen
@@ -93,6 +94,14 @@ public class RESTAPIGen
 					if(produces != null)
 						apiMethod.setProduces(produces.value());
 
+					JsonView jsonView = method.getAnnotation(JsonView.class);
+					if(jsonView != null)
+					{
+						Class<?>[] viewClasses = jsonView.value();
+						if(viewClasses.length == 1)
+							apiMethod.setJsonView(viewClasses[0]);
+					}
+
 					// start with resource path
 					apiMethod.setUrl(resourcePath.value());
 
@@ -123,24 +132,25 @@ public class RESTAPIGen
 
 									Class<?> annotationType = annotation.annotationType();
 
+									try
+									{
+										param.setValue((String) annotationType.getMethod("value").invoke(annotation));
+									}
+									catch(Exception e)
+									{
+										e.printStackTrace();
+									}
+
 									if(annotationType == PathParam.class)
 									{
-										param.setName(annotation.toString());
 										apiMethod.getPathParams().add(param);
 									}
 									else if(annotationType == QueryParam.class)
 									{
-										param.setName(annotation.toString());
 										apiMethod.getQueryParams().add(param);
 									}
 									else if(annotationType == FormParam.class)
 									{
-										param.setName(annotation.toString());
-										apiMethod.getFormParams().add(param);
-									}
-									else
-									{
-										param.setName(annotation.toString());
 										apiMethod.getFormParams().add(param);
 									}
 								}
@@ -148,8 +158,7 @@ public class RESTAPIGen
 						}
 					}
 
-					Class<?> returnType = method.getReturnType();
-					apiMethod.setReturnType(returnType.getSimpleName());
+					apiMethod.setReturnType(TypeUtil.getReturnTypeStr(method));
 
 					apiMethods.add(apiMethod);
 				}
@@ -178,74 +187,48 @@ public class RESTAPIGen
 		row.append(getCell(apiMethod.getConsumes() == null ? "" : ("<tt>" + StringUtils.join(apiMethod.getConsumes(), "</tt><br/><tt>") + "</tt>")));
 		row.append(getCell(apiMethod.getProduces() == null ? "" : ("<tt>" + StringUtils.join(apiMethod.getProduces(), "</tt><br/><tt>") + "</tt>")));
 		row.append("\n  <tr><td colspan=\"4\">");
-		row.append("Consumes:");
-		row.append("<ul>");
-		if(apiMethod.getConsumes() != null)
-		{
-			for(String consume : apiMethod.getConsumes())
-				row.append("<li><tt>" + consume + "</tt></li>");
-		}
-		else
-		{
-			row.append("<li><em>none</em></li>");
-		}
-		row.append("</ul>");
-		row.append("Produces:");
-		row.append("<ul>");
-		if(apiMethod.getProduces() != null)
-		{
-			for(String produce : apiMethod.getProduces())
-				row.append("<li><tt>" + apiMethod.getReturnType() + "</tt> <tt>" + produce + "</tt></li>");
-		}
-		else
-		{
-			row.append("<li><em>none</em></li>");
-		}
-		row.append("</ul>");
-		row.append("Path Parameters:");
-		row.append("<ul>");
 		if(!apiMethod.getPathParams().isEmpty())
 		{
+			row.append("Path Parameters:");
+			row.append("<ul>");
 			for(RestApiParam param : apiMethod.getPathParams())
 			{
-				row.append("<li><tt>" + param.getName() + "</tt> <tt>" + param.getType() + "</tt></li>");
+				row.append("<li><tt>" + param.getValue() + "</tt> : <tt>" + param.getType() + "</tt></li>");
 			}
+			row.append("</ul>");
 		}
-		else
-		{
-			row.append("<li><em>none</em></li>");
-		}
-		row.append("</ul>");
-		row.append("</ul>");
-		row.append("Query Parameters:");
-		row.append("<ul>");
 		if(!apiMethod.getQueryParams().isEmpty())
 		{
+			row.append("Query Parameters:");
+			row.append("<ul>");
 			for(RestApiParam param : apiMethod.getQueryParams())
 			{
-				row.append("<li><tt>" + param.getName() + "</tt> <tt>" + param.getType() + "</tt></li>");
+				row.append("<li><tt>" + param.getValue() + "</tt> : <tt>" + param.getType() + "</tt></li>");
 			}
+			row.append("</ul>");
 		}
-		else
-		{
-			row.append("<li><em>none</em></li>");
-		}
-		row.append("</ul>");
-		row.append("</ul>");
-		row.append("Form Parameters:");
-		row.append("<ul>");
 		if(!apiMethod.getFormParams().isEmpty())
 		{
+			row.append("Form Parameters:");
+			row.append("<ul>");
 			for(RestApiParam param : apiMethod.getFormParams())
 			{
-				row.append("<li><tt>" + param.getName() + "</tt> <tt>" + param.getType() + "</tt></li>");
+				row.append("<li><tt>" + param.getValue() + "</tt> : <tt>" + param.getType() + "</tt></li>");
 			}
+			row.append("</ul>");
 		}
-		else
+		if(apiMethod.getReturnType() != null)
 		{
-			row.append("<li><em>none</em></li>");
+			row.append("Returns:");
+			row.append("<ul>");
+			if(apiMethod.getReturnType() != null)
+			{
+				row.append("<li><tt>" + apiMethod.getReturnType() + "</tt>");
+				if(apiMethod.getJsonView() != null)
+					row.append(" (view: <tt>" + ViewClassUtil.getSanitizedViewClassName(apiMethod.getJsonView()) + "</tt>)</li>");
+			}
+			row.append("</ul>");
 		}
-		row.append("</ul>");
 		row.append("</td></tr>\n");
 		return row.append("</tr>\n").toString();
 	}
@@ -262,6 +245,7 @@ public class RESTAPIGen
 		String				consumes[];
 		String				produces[];
 		String				returnType;
+		Class<?>			jsonView;
 		List<RestApiParam>	pathParams	= new ArrayList<>();
 		List<RestApiParam>	queryParams	= new ArrayList<>();
 		List<RestApiParam>	formParams	= new ArrayList<>();
@@ -374,12 +358,22 @@ public class RESTAPIGen
 		{
 			this.formParams = formParams;
 		}
+
+		public Class<?> getJsonView()
+		{
+			return jsonView;
+		}
+
+		public void setJsonView(Class<?> jsonView)
+		{
+			this.jsonView = jsonView;
+		}
 	}
 
 	private class RestApiParam
 	{
 		String	type;
-		String	name;
+		String	value;
 
 		public String getType()
 		{
@@ -391,14 +385,14 @@ public class RESTAPIGen
 			this.type = type;
 		}
 
-		public String getName()
+		public String getValue()
 		{
-			return name;
+			return value;
 		}
 
-		public void setName(String name)
+		public void setValue(String value)
 		{
-			this.name = name;
+			this.value = value;
 		}
 	}
 }

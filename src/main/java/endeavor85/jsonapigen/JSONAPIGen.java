@@ -2,13 +2,8 @@ package endeavor85.jsonapigen;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -110,48 +105,7 @@ public class JSONAPIGen
 						property.setName(Character.toLowerCase(strip.charAt(0)) + strip.substring(1));
 				}
 
-				Class<?> returnType = method.getReturnType();
-
-				if(returnType != null)
-				{
-					if(returnType.isArray())
-					{
-						property.setType("[ " + returnType.getComponentType().getSimpleName() + " ]");
-					}
-					else if(Collection.class.isAssignableFrom(returnType))
-					{
-						String typeStr = "";
-						Type collectionType = method.getGenericReturnType();
-						if(collectionType instanceof ParameterizedType)
-						{
-							List<String> typeArgs = new ArrayList<String>();
-							ParameterizedType type = (ParameterizedType) collectionType;
-							Type[] typeArguments = type.getActualTypeArguments();
-							for(Type typeArgument : typeArguments)
-							{
-								if(typeArgument instanceof WildcardType)
-								{
-									typeArgs.add(((WildcardType) typeArgument).toString());
-								}
-								else if(typeArgument instanceof TypeVariable<?>)
-								{
-									typeArgs.add(((TypeVariable<?>) typeArgument).toString());
-								}
-								else
-								{
-									typeArgs.add(((Class<?>) typeArgument).getSimpleName());
-								}
-							}
-
-							typeStr += StringUtils.join(typeArgs, ",");
-						}
-						property.setType(typeStr + "[]");
-					}
-					else
-					{
-						property.setType(method.getReturnType().getSimpleName());
-					}
-				}
+				property.setType(TypeUtil.getReturnTypeStr(method));
 
 				properties.add(property);
 			}
@@ -162,7 +116,7 @@ public class JSONAPIGen
 			List<Class<?>> viewClassList = new ArrayList<Class<?>>(allViewClasses);
 			List<String> viewNames = new ArrayList<String>(allViewClasses.size());
 			for(Class<?> viewClass : allViewClasses)
-				viewNames.add(getSanitizedViewClassName(viewClass));
+				viewNames.add(ViewClassUtil.getSanitizedViewClassName(viewClass));
 
 			StringBuilder table = new StringBuilder("### " + clazz.getSimpleName() + "\n\n");
 			table.append("<table>\n");
@@ -209,15 +163,6 @@ public class JSONAPIGen
 			views.add(viewClass);
 
 		return views;
-	}
-
-	private String getSanitizedViewClassName(Class<?> viewClass)
-	{
-		String view = viewClass.getName();
-		int lastPeriod = view.lastIndexOf((int) '.');
-		if(lastPeriod >= 0 && lastPeriod < view.length() - 1)
-			view = view.substring(lastPeriod + 1);
-		return view.replace('$', '.');
 	}
 
 	private String propertyToRow(JsonApiProperty property, List<Class<?>> allViewClasses)
