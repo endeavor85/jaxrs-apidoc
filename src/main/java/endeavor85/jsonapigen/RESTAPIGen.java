@@ -334,29 +334,14 @@ public class RESTAPIGen
 			return pathParams;
 		}
 
-		public void setPathParams(List<RestApiParam> pathParams)
-		{
-			this.pathParams = pathParams;
-		}
-
 		public List<RestApiParam> getQueryParams()
 		{
 			return queryParams;
 		}
 
-		public void setQueryParams(List<RestApiParam> queryParams)
-		{
-			this.queryParams = queryParams;
-		}
-
 		public List<RestApiParam> getFormParams()
 		{
 			return formParams;
-		}
-
-		public void setFormParams(List<RestApiParam> formParams)
-		{
-			this.formParams = formParams;
 		}
 
 		public Class<?> getJsonView()
