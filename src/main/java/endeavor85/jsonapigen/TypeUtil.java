@@ -13,51 +13,81 @@ import org.apache.commons.lang3.StringUtils;
 
 public class TypeUtil
 {
-	public static String getReturnTypeStr(Method method)
+	public static SanitizedType getReturnType(Method method)
 	{
+		SanitizedType sanitizedType = null;
+
 		Class<?> returnType = method.getReturnType();
 
 		if(returnType != null)
 		{
+			sanitizedType = new SanitizedType();
+
 			if(returnType.isArray())
 			{
-				return returnType.getComponentType().getSimpleName() + "[]";
+				sanitizedType.setArray(true);
+				sanitizedType.setType(returnType.getComponentType());
 			}
 			else if(Collection.class.isAssignableFrom(returnType))
 			{
-				String typeStr = "";
+				sanitizedType.setArray(true);
 				Type collectionType = method.getGenericReturnType();
 				if(collectionType instanceof ParameterizedType)
 				{
-					List<String> typeArgs = new ArrayList<String>();
 					ParameterizedType type = (ParameterizedType) collectionType;
 					Type[] typeArguments = type.getActualTypeArguments();
-					for(Type typeArgument : typeArguments)
+
+					if(typeArguments.length == 1)
 					{
+						List<String> typeArgs = new ArrayList<String>();
+
+						for(Type typeArgument : typeArguments)
+						{
+							if(typeArgument instanceof WildcardType)
+							{
+								typeArgs.add(((WildcardType) typeArgument).toString());
+							}
+							else if(typeArgument instanceof TypeVariable<?>)
+							{
+								typeArgs.add(((TypeVariable<?>) typeArgument).toString());
+							}
+							else
+							{
+								typeArgs.add(((Class<?>) typeArgument).getSimpleName());
+							}
+						}
+
+						// TODO: need to find a way to link the actual class types
+						sanitizedType.setTypeStr(StringUtils.join(typeArgs, ","));
+					}
+					else
+					{
+						Type typeArgument = typeArguments[0];
+
 						if(typeArgument instanceof WildcardType)
 						{
-							typeArgs.add(((WildcardType) typeArgument).toString());
+							// TODO: need to find a way to link the actual class types
+							sanitizedType.setTypeStr(((WildcardType) typeArgument).toString());
 						}
 						else if(typeArgument instanceof TypeVariable<?>)
 						{
-							typeArgs.add(((TypeVariable<?>) typeArgument).toString());
+							// TODO: need to find a way to link the actual class types
+							sanitizedType.setTypeStr(((TypeVariable<?>) typeArgument).toString());
 						}
 						else
 						{
-							typeArgs.add(((Class<?>) typeArgument).getSimpleName());
+							sanitizedType.setType((Class<?>) typeArgument);
 						}
 					}
-
-					typeStr += StringUtils.join(typeArgs, ",");
 				}
-				return typeStr + "[]";
 			}
 			else
 			{
-				return method.getReturnType().getSimpleName();
+				sanitizedType.setArray(false);
+				sanitizedType.setType(method.getReturnType());
 			}
 		}
-		else
-			return null;
+
+		return sanitizedType;
 	}
 }

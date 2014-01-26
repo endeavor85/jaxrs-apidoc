@@ -126,39 +126,48 @@ public class RESTAPIGen
 							Annotation[] annotations = paramAnnotations[i];
 							if(annotations != null)
 							{
-								for(int j = 0; j < annotations.length; j++)
+								if(annotations.length == 0)
 								{
-									Annotation annotation = annotations[j];
+									// TODO: assuming no annotation implies FormParam
+									apiMethod.getFormParams().add(param);
+								}
+								else
+								{
+									for(int j = 0; j < annotations.length; j++)
+									{
+										Annotation annotation = annotations[j];
 
-									Class<?> annotationType = annotation.annotationType();
+										Class<?> annotationType = annotation.annotationType();
 
-									try
-									{
-										param.setValue((String) annotationType.getMethod("value").invoke(annotation));
-									}
-									catch(Exception e)
-									{
-										e.printStackTrace();
-									}
+										try
+										{
+											param.setValue((String) annotationType.getMethod("value").invoke(annotation));
+										}
+										catch(Exception e)
+										{
+											e.printStackTrace();
+										}
 
-									if(annotationType == PathParam.class)
-									{
-										apiMethod.getPathParams().add(param);
-									}
-									else if(annotationType == QueryParam.class)
-									{
-										apiMethod.getQueryParams().add(param);
-									}
-									else if(annotationType == FormParam.class)
-									{
-										apiMethod.getFormParams().add(param);
+										if(annotationType == PathParam.class)
+										{
+											apiMethod.getPathParams().add(param);
+										}
+										else if(annotationType == QueryParam.class)
+										{
+											apiMethod.getQueryParams().add(param);
+										}
+										else if(annotationType == FormParam.class)
+										{
+											apiMethod.getFormParams().add(param);
+										}
 									}
 								}
 							}
 						}
 					}
 
-					apiMethod.setReturnType(TypeUtil.getReturnTypeStr(method));
+					SanitizedType returnType = TypeUtil.getReturnType(method);
+					apiMethod.setReturnType(returnType == null ? "null" : returnType.toString());
 
 					apiMethods.add(apiMethod);
 				}
@@ -213,7 +222,9 @@ public class RESTAPIGen
 			row.append("<ul>");
 			for(RestApiParam param : apiMethod.getFormParams())
 			{
-				row.append("<li><tt>" + param.getValue() + "</tt> : <tt>" + param.getType() + "</tt></li>");
+				if(param.getValue() == null)
+
+					row.append("<li>" + (param.getValue() == null ? "" : "<tt>" + param.getValue() + "</tt> : ") + "<tt>" + param.getType() + "</tt></li>");
 			}
 			row.append("</ul>");
 		}

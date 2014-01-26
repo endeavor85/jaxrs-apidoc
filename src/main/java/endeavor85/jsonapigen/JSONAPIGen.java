@@ -3,7 +3,6 @@ package endeavor85.jsonapigen;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,54 +21,70 @@ public class JSONAPIGen
 	{
 		if(args.length > 0)
 		{
-			for(String arg : args)
-				new JSONAPIGen(arg);
+			new JSONAPIGen(args);
 		}
 		else
 			System.err.println("Add package name arguments (space-separated). E.g., java JSONAPIGen com.");
 	}
 
-	Map<String, String>	jsonType	= new TreeMap<>();
+	Map<String, JsonApiType>	jsonType	= new TreeMap<>();
+	Set<Class<?>>				parsedTypes	= new HashSet<>();
 
-	public JSONAPIGen(String rootPackageName)
+	public JSONAPIGen(String[] rootPackages)
 	{
-		try
+		for(String rootPackageName : rootPackages)
 		{
-			ClassPath classpath = ClassPath.from(JSONAPIGen.class.getClassLoader());
-			for(ClassPath.ClassInfo classInfo : classpath.getTopLevelClassesRecursive(rootPackageName))
+			try
 			{
-				Class<?> clazz = classInfo.load();
-				if(clazz.isEnum())
-					jsonType.put(clazz.getSimpleName(), inspectEnum(clazz));
-				else
-					jsonType.put(clazz.getSimpleName(), inspectClass(clazz, false));
+				ClassPath classpath = ClassPath.from(JSONAPIGen.class.getClassLoader());
+				for(ClassPath.ClassInfo classInfo : classpath.getTopLevelClassesRecursive(rootPackageName))
+				{
+					Class<?> clazz = classInfo.load();
+					if(clazz.isEnum())
+					{
+						jsonType.put(clazz.getSimpleName(), inspectEnum(clazz));
+						parsedTypes.add(clazz);
+					}
+					else
+					{
+						JsonApiClass classType = inspectClass(clazz, false);
+						// only include types that have json properties
+						if(!classType.getProperties().isEmpty())
+						{
+							jsonType.put(clazz.getSimpleName(), classType);
+							parsedTypes.add(clazz);
+						}
+					}
+				}
+			}
+			catch(IOException e)
+			{
+				e.printStackTrace();
 			}
 		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
 
-		for(String classApi : jsonType.values())
+		for(JsonApiType type : jsonType.values())
 		{
-			System.out.print(classApi);
+			if(type instanceof JsonApiClass)
+				System.out.print(((JsonApiClass) type).toString(parsedTypes));
+			else
+				System.out.print(type.toString());
 		}
 	}
 
-	private String inspectEnum(Class<?> enumClass)
+	private JsonApiEnum inspectEnum(Class<?> enumClass)
 	{
-		StringBuilder result = new StringBuilder("### " + enumClass.getSimpleName() + "\n\n");
-		result.append("<tt>" + StringUtils.join(Arrays.asList(enumClass.getEnumConstants()), "</tt> | <tt>") + "</tt>");
-		result.append("\n");
-		return result.toString();
+		JsonApiEnum enumType = new JsonApiEnum(enumClass);
+
+		for(Object o : enumClass.getEnumConstants())
+			enumType.getValues().add(o.toString());
+
+		return enumType;
 	}
 
-	private String inspectClass(Class<?> clazz, boolean includeAllGetters)
+	private JsonApiClass inspectClass(Class<?> clazz, boolean includeAllGetters)
 	{
-		List<JsonApiProperty> properties = new ArrayList<JSONAPIGen.JsonApiProperty>();
-		Set<Class<?>> allViewClasses = new HashSet<Class<?>>();
-
-		StringBuilder result = new StringBuilder();
+		JsonApiClass classType = new JsonApiClass(clazz);
 
 		for(Method method : clazz.getMethods())
 		{
@@ -94,7 +109,7 @@ public class JSONAPIGen
 					property.getViews().addAll(getViews(viewClass));
 
 				// add views to set of all views for this class (this will ensure there are view columns for them in the table)
-				allViewClasses.addAll(property.getViews());
+				classType.getViewClasses().addAll(property.getViews());
 			}
 
 			if(!valid && includeAllGetters && isGetter(method))
@@ -116,41 +131,13 @@ public class JSONAPIGen
 						property.setName(Character.toLowerCase(strip.charAt(0)) + strip.substring(1));
 				}
 
-				property.setType(TypeUtil.getReturnTypeStr(method));
+				property.setType(TypeUtil.getReturnType(method));
 
-				properties.add(property);
+				classType.getProperties().add(property);
 			}
 		}
 
-		if(!properties.isEmpty())
-		{
-			List<Class<?>> viewClassList = new ArrayList<Class<?>>(allViewClasses);
-			List<String> viewNames = new ArrayList<String>(allViewClasses.size());
-			for(Class<?> viewClass : allViewClasses)
-				viewNames.add(ViewClassUtil.getSanitizedViewClassName(viewClass));
-
-			result.append("### " + clazz.getSimpleName() + "\n\n");
-			result.append("<table>\n");
-			result.append("  <tr><th rowspan='2'>Property name</th><th rowspan='2'>Type</th><th colspan='" + viewNames.size() + "'>Views</th></tr>\n");
-			result.append("  <tr>");
-			for(String viewName : viewNames)
-				result.append("<th>" + viewName + "</th>");
-			result.append("</tr>\n");
-
-			Map<String, String> propertyRows = new TreeMap<>();
-
-			for(JsonApiProperty property : properties)
-				propertyRows.put(property.name, propertyToRow(property, viewClassList));
-
-			for(String propertyRow : propertyRows.values())
-			{
-				result.append(propertyRow);
-			}
-			
-			result.append("</table>\n\n");
-		}
-
-		return result.toString();
+		return classType;
 	}
 
 	private boolean isGetter(Method method)
@@ -186,31 +173,143 @@ public class JSONAPIGen
 		return views;
 	}
 
-	private String propertyToRow(JsonApiProperty property, List<Class<?>> allViewClasses)
+	private static class JsonApiType
 	{
-		StringBuilder row = new StringBuilder("  <tr>");
-		row.append(getCell("<tt>" + property.getName() + "</tt>"));
-		row.append(getCell("<tt>" + property.getType() + "</tt>"));
-		for(Class<?> viewClass : allViewClasses)
+		Class<?>	type;
+
+		public JsonApiType(Class<?> type)
 		{
-			if(property.getViews().contains(viewClass))
-				row.append(getCell("&#x2713;"));
-			else
-				row.append(getCell("&nbsp;"));
+			this.type = type;
 		}
-		return row.append("</tr>\n").toString();
+
+		public Class<?> getType()
+		{
+			return type;
+		}
+
+		@Override
+		public String toString()
+		{
+			return "### " + getType().getSimpleName() + "\n\n";
+		}
 	}
 
-	private String getCell(String content)
+	private static class JsonApiEnum extends JsonApiType
 	{
-		return "<td>" + content + "</td>";
+		List<String>	values	= new ArrayList<>();
+
+		public JsonApiEnum(Class<?> type)
+		{
+			super(type);
+		}
+
+		public List<String> getValues()
+		{
+			return values;
+		}
+
+		@Override
+		public String toString()
+		{
+			StringBuilder result = new StringBuilder(super.toString());
+			result.append("<tt>" + StringUtils.join(getValues(), "</tt> | <tt>") + "</tt>");
+			result.append("\n\n");
+			return result.toString();
+		}
+	}
+
+	private static class JsonApiClass extends JsonApiType
+	{
+		List<JsonApiProperty>	properties	= new ArrayList<>();
+		Set<Class<?>>			viewClasses	= new HashSet<Class<?>>();
+
+		public JsonApiClass(Class<?> type)
+		{
+			super(type);
+		}
+
+		public List<JsonApiProperty> getProperties()
+		{
+			return properties;
+		}
+
+		public Set<Class<?>> getViewClasses()
+		{
+			return viewClasses;
+		}
+
+		public String toString(Set<Class<?>> hyperlinkToTypes)
+		{
+			if(hyperlinkToTypes == null)
+				hyperlinkToTypes = new HashSet<>();
+
+			StringBuilder result = new StringBuilder(super.toString());
+
+			if(!properties.isEmpty())
+			{
+				List<String> viewNames = new ArrayList<String>(viewClasses.size());
+				for(Class<?> viewClass : viewClasses)
+					viewNames.add(ViewClassUtil.getSanitizedViewClassName(viewClass));
+
+				result.append("<table>\n");
+				result.append("  <tr><th rowspan='2'>Property name</th><th rowspan='2'>Type</th><th colspan='" + viewNames.size() + "'>Views</th></tr>\n");
+				result.append("  <tr>");
+				for(String viewName : viewNames)
+					result.append("<th>" + viewName + "</th>");
+				result.append("</tr>\n");
+
+				Map<String, String> propertyRows = new TreeMap<>();
+
+				for(JsonApiProperty property : properties)
+				{
+					StringBuilder row = new StringBuilder("  <tr>");
+					row.append(getCell("<tt>" + property.getName() + "</tt>"));
+					SanitizedType returnType = property.getType();
+					if(returnType.getType() != null && hyperlinkToTypes.contains(returnType.getType()))
+						row.append(getCell("<tt><a href='#" + returnType.getType().getSimpleName().toLowerCase() + "'>" + returnType.getType().getSimpleName() + (returnType.isArray() ? "[]" : "")
+								+ "</a></tt>"));
+					else
+						row.append(getCell("<tt>" + returnType + "</tt>"));
+					for(Class<?> viewClass : viewClasses)
+					{
+						if(property.getViews().contains(viewClass))
+							row.append(getCell("&#x2713;"));
+						else
+							row.append(getCell("&nbsp;"));
+					}
+					row.append("</tr>\n");
+
+					propertyRows.put(property.name, row.toString());
+				}
+
+				for(String propertyRow : propertyRows.values())
+				{
+					result.append(propertyRow);
+				}
+
+				result.append("</table>\n\n");
+			}
+
+			return result.toString();
+		}
+
+		@Override
+		public String toString()
+		{
+			return this.toString(null);
+		}
+
+		private String getCell(String content)
+		{
+			return "<td>" + content + "</td>";
+		}
 	}
 
 	private static class JsonApiProperty
 	{
 		String			name;
-		String			type;
-		List<Class<?>>	views	= new ArrayList<Class<?>>();
+		SanitizedType	type;
+		List<Class<?>>	views	= new ArrayList<>();
 
 		public String getName()
 		{
@@ -222,12 +321,12 @@ public class JSONAPIGen
 			this.name = name;
 		}
 
-		public String getType()
+		public SanitizedType getType()
 		{
 			return type;
 		}
 
-		public void setType(String type)
+		public void setType(SanitizedType type)
 		{
 			this.type = type;
 		}
