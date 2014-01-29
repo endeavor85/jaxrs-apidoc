@@ -115,8 +115,15 @@ public class JSONAPIGen
 			if(!valid && includeAllGetters && isGetter(method))
 				valid = true;
 
+			SanitizedType returnType = TypeUtil.getReturnType(method);
+			// ignore void returns (probably just setters)
+			if(returnType == null)
+				valid = false;
+
 			if(valid)
 			{
+				property.setType(returnType);
+
 				// if property name is still unknown, infer from method name
 				if(property.getName() == null)
 				{
@@ -130,8 +137,6 @@ public class JSONAPIGen
 					if(strip != null)
 						property.setName(Character.toLowerCase(strip.charAt(0)) + strip.substring(1));
 				}
-
-				property.setType(TypeUtil.getReturnType(method));
 
 				classType.getProperties().add(property);
 			}
@@ -252,7 +257,7 @@ public class JSONAPIGen
 					viewNames.add(ViewClassUtil.getSanitizedViewClassName(viewClass));
 
 				result.append("<table>\n");
-				result.append("  <tr><th rowspan='2'>Property name</th><th rowspan='2'>Type</th><th colspan='" + viewNames.size() + "'>Views</th></tr>\n");
+				result.append("  <tr><th rowspan='2'>Property name</th><th rowspan='2'>Type</th>" + (viewNames.isEmpty() ? "" : ("<th colspan='" + viewNames.size() + "'>Views</th>")) + "</tr>\n");
 				result.append("  <tr>");
 				for(String viewName : viewNames)
 					result.append("<th>" + viewName + "</th>");

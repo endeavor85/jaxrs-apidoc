@@ -19,7 +19,7 @@ public class TypeUtil
 
 		Class<?> returnType = method.getReturnType();
 
-		if(returnType != null)
+		if(returnType != null && !returnType.equals(Void.TYPE))
 		{
 			sanitizedType = new SanitizedType();
 
