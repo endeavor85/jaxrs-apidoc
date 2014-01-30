@@ -2,6 +2,7 @@ package endeavor85.jsonapigen;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.TreeMap;
 import org.apache.commons.lang3.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.google.common.reflect.ClassPath;
 
@@ -39,20 +42,21 @@ public class JSONAPIGen
 				ClassPath classpath = ClassPath.from(JSONAPIGen.class.getClassLoader());
 				for(ClassPath.ClassInfo classInfo : classpath.getTopLevelClassesRecursive(rootPackageName))
 				{
-					Class<?> clazz = classInfo.load();
-					if(clazz.isEnum())
+					Class<?> type = classInfo.load();
+					if(type.isEnum())
 					{
-						jsonType.put(clazz.getSimpleName(), inspectEnum(clazz));
-						parsedTypes.add(clazz);
+						jsonType.put(type.getSimpleName(), new JsonApiEnum(type));
+						parsedTypes.add(type);
 					}
 					else
 					{
-						JsonApiClass classType = inspectClass(clazz, false);
+						JsonApiClass classType = new JsonApiClass(type);
+
 						// only include types that have json properties
 						if(!classType.getProperties().isEmpty())
 						{
-							jsonType.put(clazz.getSimpleName(), classType);
-							parsedTypes.add(clazz);
+							jsonType.put(type.getSimpleName(), classType);
+							parsedTypes.add(type);
 						}
 					}
 				}
@@ -63,6 +67,32 @@ public class JSONAPIGen
 			}
 		}
 
+		// check inheritance
+		for(JsonApiType type : jsonType.values())
+		{
+			if(type instanceof JsonApiClass)
+			{
+				JsonApiClass apiClass = (JsonApiClass) type;
+				Class<?> superclass = apiClass.getType().getSuperclass();
+				JsonApiType parentType = jsonType.get(superclass.getSimpleName());
+				if(parentType != null && parentType instanceof JsonApiClass)
+				{
+					JsonApiClass parentApiType = (JsonApiClass) parentType;
+					parentApiType.subTypes.add(apiClass);
+					// copy json type property from parent (will need to display this along with this type's specific name value)
+					apiClass.jsonTypeProperty = parentApiType.jsonTypeProperty;
+
+					// look for json type name
+					JsonTypeName jsonTypeNameAnnot = apiClass.getType().getAnnotation(JsonTypeName.class);
+					if(jsonTypeNameAnnot != null)
+					{
+						apiClass.jsonTypeName = jsonTypeNameAnnot.value();
+					}
+				}
+			}
+		}
+
+		// write markdown
 		for(JsonApiType type : jsonType.values())
 		{
 			if(type instanceof JsonApiClass)
@@ -72,115 +102,11 @@ public class JSONAPIGen
 		}
 	}
 
-	private JsonApiEnum inspectEnum(Class<?> enumClass)
-	{
-		JsonApiEnum enumType = new JsonApiEnum(enumClass);
-
-		for(Object o : enumClass.getEnumConstants())
-			enumType.getValues().add(o.toString());
-
-		return enumType;
-	}
-
-	private JsonApiClass inspectClass(Class<?> clazz, boolean includeAllGetters)
-	{
-		JsonApiClass classType = new JsonApiClass(clazz);
-
-		for(Method method : clazz.getMethods())
-		{
-			boolean valid = false;
-			JsonApiProperty property = new JsonApiProperty();
-
-			JsonProperty jsonProperty = method.getAnnotation(JsonProperty.class);
-
-			if(jsonProperty != null)
-			{
-				valid = true;
-				property.setName(jsonProperty.value());
-			}
-
-			JsonView jsonView = method.getAnnotation(JsonView.class);
-
-			if(jsonView != null)
-			{
-				valid = true;
-				Class<?>[] viewClasses = jsonView.value();
-				for(Class<?> viewClass : viewClasses)
-					property.getViews().addAll(getViews(viewClass));
-
-				// add views to set of all views for this class (this will ensure there are view columns for them in the table)
-				classType.getViewClasses().addAll(property.getViews());
-			}
-
-			if(!valid && includeAllGetters && isGetter(method))
-				valid = true;
-
-			SanitizedType returnType = TypeUtil.getReturnType(method);
-			// ignore void returns (probably just setters)
-			if(returnType == null)
-				valid = false;
-
-			if(valid)
-			{
-				property.setType(returnType);
-
-				// if property name is still unknown, infer from method name
-				if(property.getName() == null)
-				{
-					String methodName = method.getName();
-
-					String strip = null;
-					if(methodName.startsWith("get"))
-						strip = methodName.substring(3);
-					else if(methodName.startsWith("is"))
-						strip = methodName.substring(2);
-					if(strip != null)
-						property.setName(Character.toLowerCase(strip.charAt(0)) + strip.substring(1));
-				}
-
-				classType.getProperties().add(property);
-			}
-		}
-
-		return classType;
-	}
-
-	private boolean isGetter(Method method)
-	{
-		if(!method.getName().startsWith("get") && !method.getName().startsWith("is"))
-			return false;
-		if(method.getParameterTypes().length != 0)
-			return false;
-		if(void.class.equals(method.getReturnType()))
-			return false;
-		return true;
-	}
-
-	private List<Class<?>> getViews(Class<?> viewClass)
-	{
-		List<Class<?>> views = new ArrayList<Class<?>>();
-		Class<?> declaringClass = viewClass.getDeclaringClass();
-		Class<?> possibleViews[] = null;
-
-		if(declaringClass != null)
-		{
-			possibleViews = declaringClass.getDeclaredClasses();
-
-			for(Class<?> possibleView : possibleViews)
-			{
-				if(viewClass.isAssignableFrom(possibleView))
-					views.add(possibleView);
-			}
-		}
-		else
-			views.add(viewClass);
-
-		return views;
-	}
-
 	private static class JsonApiType
 	{
-		Class<?>	type;
+		boolean				abstractType;
+		Class<?>			type;
+		Set<JsonApiType>	subTypes	= new HashSet<>();
 
 		public JsonApiType(Class<?> type)
 		{
@@ -192,32 +118,39 @@ public class JSONAPIGen
 			return type;
 		}
 
+		protected String getHyperlinkFor(Class<?> clazz)
+		{
+			return "<a href='#" + clazz.getSimpleName().toLowerCase() + "'>" + clazz.getSimpleName() + "</a>";
+		}
+
 		@Override
 		public String toString()
 		{
-			return "### " + getType().getSimpleName() + "\n\n";
+			String abstractWrapper = abstractType ? "_" : "";
+			return "### " + abstractWrapper + getType().getSimpleName() + abstractWrapper + "\n\n";
 		}
 	}
 
 	private static class JsonApiEnum extends JsonApiType
 	{
-		List<String>	values	= new ArrayList<>();
+		List<String>	values;
 
-		public JsonApiEnum(Class<?> type)
+		public JsonApiEnum(Class<?> enumType)
 		{
-			super(type);
-		}
+			super(enumType);
+			abstractType = false;
 
-		public List<String> getValues()
-		{
-			return values;
+			values = new ArrayList<>();
+
+			for(Object o : enumType.getEnumConstants())
+				values.add(o.toString());
 		}
 
 		@Override
 		public String toString()
 		{
 			StringBuilder result = new StringBuilder(super.toString());
-			result.append("<tt>" + StringUtils.join(getValues(), "</tt> | <tt>") + "</tt>");
+			result.append("<tt>" + StringUtils.join(values, "</tt> | <tt>") + "</tt>");
 			result.append("\n\n");
 			return result.toString();
 		}
@@ -226,21 +159,124 @@ public class JSONAPIGen
 	private static class JsonApiClass extends JsonApiType
 	{
 		List<JsonApiProperty>	properties	= new ArrayList<>();
-		Set<Class<?>>			viewClasses	= new HashSet<Class<?>>();
+		Set<Class<?>>			viewClasses	= new HashSet<>();
+		String					jsonTypeProperty;
+		String					jsonTypeName;
 
-		public JsonApiClass(Class<?> type)
+		public JsonApiClass(Class<?> clazz)
 		{
-			super(type);
+			this(clazz, false);
+		}
+
+		public JsonApiClass(Class<?> clazz, boolean includeAllGetters)
+		{
+			super(clazz);
+			abstractType = Modifier.isAbstract(type.getModifiers());
+
+			// if abstract, find type property
+			if(abstractType)
+			{
+				JsonTypeInfo jsonTypeInfo = clazz.getAnnotation(JsonTypeInfo.class);
+
+				if(jsonTypeInfo != null)
+				{
+					jsonTypeProperty = (jsonTypeInfo.property().isEmpty() ? jsonTypeInfo.use().getDefaultPropertyName() : jsonTypeInfo.property());
+				}
+			}
+
+			for(Method method : clazz.getMethods())
+			{
+				boolean valid = false;
+				JsonApiProperty property = new JsonApiProperty();
+
+				JsonProperty jsonProperty = method.getAnnotation(JsonProperty.class);
+
+				if(jsonProperty != null)
+				{
+					valid = true;
+					property.setName(jsonProperty.value());
+				}
+
+				JsonView jsonView = method.getAnnotation(JsonView.class);
+
+				if(jsonView != null)
+				{
+					valid = true;
+					Class<?>[] viewClasses = jsonView.value();
+					for(Class<?> viewClass : viewClasses)
+						property.getViews().addAll(getViews(viewClass));
+
+					// add views to set of all views for this class (this will ensure there are view columns for them in the table)
+					this.viewClasses.addAll(property.getViews());
+				}
+
+				if(!valid && includeAllGetters && isGetter(method))
+					valid = true;
+
+				SanitizedType returnType = TypeUtil.getReturnType(method);
+				// ignore void returns (probably just setters)
+				if(returnType == null)
+					valid = false;
+
+				if(valid)
+				{
+					property.setType(returnType);
+
+					// if property name is still unknown, infer from method name
+					if(property.getName() == null)
+					{
+						String methodName = method.getName();
+
+						String strip = null;
+						if(methodName.startsWith("get"))
+							strip = methodName.substring(3);
+						else if(methodName.startsWith("is"))
+							strip = methodName.substring(2);
+						if(strip != null)
+							property.setName(Character.toLowerCase(strip.charAt(0)) + strip.substring(1));
+					}
+
+					properties.add(property);
+				}
+			}
+		}
+
+		private List<Class<?>> getViews(Class<?> viewClass)
+		{
+			List<Class<?>> views = new ArrayList<Class<?>>();
+			Class<?> declaringClass = viewClass.getDeclaringClass();
+			Class<?> possibleViews[] = null;
+
+			if(declaringClass != null)
+			{
+				possibleViews = declaringClass.getDeclaredClasses();
+
+				for(Class<?> possibleView : possibleViews)
+				{
+					if(viewClass.isAssignableFrom(possibleView))
+						views.add(possibleView);
+				}
+			}
+			else
+				views.add(viewClass);
+
+			return views;
+		}
+
+		private boolean isGetter(Method method)
+		{
+			if(!method.getName().startsWith("get") && !method.getName().startsWith("is"))
+				return false;
+			if(method.getParameterTypes().length != 0)
+				return false;
+			if(void.class.equals(method.getReturnType()))
+				return false;
+			return true;
 		}
 
 		public List<JsonApiProperty> getProperties()
 		{
 			return properties;
-		}
-
-		public Set<Class<?>> getViewClasses()
-		{
-			return viewClasses;
 		}
 
 		public String toString(Set<Class<?>> hyperlinkToTypes)
@@ -263,6 +299,24 @@ public class JSONAPIGen
 					result.append("<th>" + viewName + "</th>");
 				result.append("</tr>\n");
 
+				// add type property if necessary
+				if(jsonTypeProperty != null && !jsonTypeProperty.isEmpty())
+				{
+					result.append("  <tr><td><tt>" + jsonTypeProperty + "</tt></td>");
+					
+					// if this is the parent type
+					if(abstractType)
+						result.append(getCell("<tt>String</tt> <i>(implementor's type)</i>"));
+					else
+						result.append(getCell("<tt>String</tt> = <tt>\"" + jsonTypeName + "\"</tt>"));
+					
+					for(int i = 0; i < viewClasses.size(); i++)
+						result.append(getCell("&#x2713;"));
+
+					result.append("</tr>\n");
+				}
+
+				// add annotated json properties
 				Map<String, String> propertyRows = new TreeMap<>();
 
 				for(JsonApiProperty property : properties)
@@ -271,8 +325,7 @@ public class JSONAPIGen
 					row.append(getCell("<tt>" + property.getName() + "</tt>"));
 					SanitizedType returnType = property.getType();
 					if(returnType.getType() != null && hyperlinkToTypes.contains(returnType.getType()))
-						row.append(getCell("<tt><a href='#" + returnType.getType().getSimpleName().toLowerCase() + "'>" + returnType.getType().getSimpleName() + (returnType.isArray() ? "[]" : "")
-								+ "</a></tt>"));
+						row.append(getCell("<tt>" + getHyperlinkFor(returnType.getType()) + (returnType.isArray() ? "[]" : "") + "</tt>"));
 					else
 						row.append(getCell("<tt>" + returnType + "</tt>"));
 					for(Class<?> viewClass : viewClasses)
@@ -293,6 +346,17 @@ public class JSONAPIGen
 				}
 
 				result.append("</table>\n\n");
+			}
+
+			// for abstract types, check for implementors and list them
+			if(abstractType && !subTypes.isEmpty())
+			{
+				result.append("##### Implementors\n\n");
+				for(JsonApiType subType : subTypes)
+				{
+					result.append("* " + getHyperlinkFor(subType.getType()) + "\n");
+				}
+				result.append("\n");
 			}
 
 			return result.toString();
