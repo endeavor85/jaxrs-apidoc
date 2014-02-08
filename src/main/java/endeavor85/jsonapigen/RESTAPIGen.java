@@ -204,7 +204,7 @@ public class RESTAPIGen
 			{
 				row.append("<li><tt>" + param.getValue() + "</tt> : <tt>" + param.getType() + "</tt></li>");
 			}
-			row.append("</ul>");
+			row.append("</ul>\n");
 		}
 		if(!apiMethod.getQueryParams().isEmpty())
 		{
@@ -214,7 +214,7 @@ public class RESTAPIGen
 			{
 				row.append("<li><tt>" + param.getValue() + "</tt> : <tt>" + param.getType() + "</tt></li>");
 			}
-			row.append("</ul>");
+			row.append("</ul>\n");
 		}
 		if(!apiMethod.getFormParams().isEmpty())
 		{
@@ -222,11 +222,9 @@ public class RESTAPIGen
 			row.append("<ul>");
 			for(RestApiParam param : apiMethod.getFormParams())
 			{
-				if(param.getValue() == null)
-
-					row.append("<li>" + (param.getValue() == null ? "" : "<tt>" + param.getValue() + "</tt> : ") + "<tt>" + param.getType() + "</tt></li>");
+				row.append("<li>" + (param.getValue() == null ? "" : "<tt>" + param.getValue() + "</tt> : ") + "<tt>" + param.getType() + "</tt></li>\n");
 			}
-			row.append("</ul>");
+			row.append("</ul>\n");
 		}
 		if(apiMethod.getReturnType() != null)
 		{
@@ -238,7 +236,7 @@ public class RESTAPIGen
 				if(apiMethod.getJsonView() != null)
 					row.append(" (view: <tt>" + ViewClassUtil.getSanitizedViewClassName(apiMethod.getJsonView()) + "</tt>)</li>");
 			}
-			row.append("</ul>");
+			row.append("</ul>\n");
 		}
 		row.append("</td></tr>\n");
 		return row.append("</tr>\n").toString();
