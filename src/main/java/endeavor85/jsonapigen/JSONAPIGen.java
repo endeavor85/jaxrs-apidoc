@@ -23,9 +23,7 @@ public class JSONAPIGen
 	public static void main(String[] args)
 	{
 		if(args.length > 0)
-		{
 			new JSONAPIGen(args);
-		}
 		else
 			System.err.println("Add package name arguments (space-separated). E.g., java JSONAPIGen com.");
 	}
@@ -35,6 +33,9 @@ public class JSONAPIGen
 
 	public JSONAPIGen(String[] rootPackages)
 	{
+		List<Class<?>> types = new ArrayList<>();
+
+		// inspect packages for types
 		for(String rootPackageName : rootPackages)
 		{
 			try
@@ -42,28 +43,35 @@ public class JSONAPIGen
 				ClassPath classpath = ClassPath.from(JSONAPIGen.class.getClassLoader());
 				for(ClassPath.ClassInfo classInfo : classpath.getTopLevelClassesRecursive(rootPackageName))
 				{
-					Class<?> type = classInfo.load();
-					if(type.isEnum())
-					{
-						jsonType.put(type.getSimpleName(), new JsonApiEnum(type));
-						parsedTypes.add(type);
-					}
-					else
-					{
-						JsonApiClass classType = new JsonApiClass(type);
-
-						// only include types that have json properties
-						if(!classType.getProperties().isEmpty())
-						{
-							jsonType.put(type.getSimpleName(), classType);
-							parsedTypes.add(type);
-						}
-					}
+					// inspect top level class for inner classes (recursively)
+					Class<?> topLevelClass = classInfo.load();
+					types.addAll(inspectTypesRecursive(topLevelClass));
 				}
 			}
 			catch(IOException e)
 			{
 				e.printStackTrace();
+			}
+		}
+
+		// parse included classes
+		for(Class<?> type : types)
+		{
+			if(type.isEnum())
+			{
+				jsonType.put(type.getSimpleName(), new JsonApiEnum(type));
+				parsedTypes.add(type);
+			}
+			else
+			{
+				JsonApiClass classType = new JsonApiClass(type);
+
+				// only include types that have json properties
+				if(!classType.getProperties().isEmpty())
+				{
+					jsonType.put(type.getSimpleName(), classType);
+					parsedTypes.add(type);
+				}
 			}
 		}
 
@@ -102,6 +110,20 @@ public class JSONAPIGen
 		}
 	}
 
+	private List<Class<?>> inspectTypesRecursive(Class<?> rootType)
+	{
+		List<Class<?>> types = new ArrayList<>();
+
+		// include root type
+		types.add(rootType);
+
+		// recursively inspect inner classes
+		for(Class<?> innerClass : rootType.getDeclaredClasses())
+			types.addAll(inspectTypesRecursive(innerClass));
+		
+		return types;
+	}
+
 	private static class JsonApiType
 	{
 		boolean				abstractType;
@@ -127,7 +149,7 @@ public class JSONAPIGen
 		public String toString()
 		{
 			String abstractWrapper = abstractType ? "_" : "";
-			return "### " + abstractWrapper + getType().getSimpleName() + abstractWrapper + "\n\n";
+			return "### " + abstractWrapper + getType().getSimpleName() + abstractWrapper + "\n_(" + getType().getName() + ")_\n\n";
 		}
 	}
 
@@ -201,7 +223,6 @@ public class JSONAPIGen
 
 				if(jsonView != null)
 				{
-					valid = true;
 					Class<?>[] viewClasses = jsonView.value();
 					for(Class<?> viewClass : viewClasses)
 						property.getViews().addAll(getViews(viewClass));
@@ -303,13 +324,13 @@ public class JSONAPIGen
 				if(jsonTypeProperty != null && !jsonTypeProperty.isEmpty())
 				{
 					result.append("  <tr><td><tt>" + jsonTypeProperty + "</tt></td>");
-					
+
 					// if this is the parent type
 					if(abstractType)
 						result.append(getCell("<tt>String</tt> <i>(implementor's type)</i>"));
 					else
 						result.append(getCell("<tt>String</tt> = <tt>\"" + jsonTypeName + "\"</tt>"));
-					
+
 					for(int i = 0; i < viewClasses.size(); i++)
 						result.append(getCell("&#x2713;"));
 
