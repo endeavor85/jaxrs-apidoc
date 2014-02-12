@@ -23,31 +23,66 @@ public class ApiGenerator
 			return;
 		}
 
-		// parse resources in each package argument
+		// store REST resources and types
 		Map<String, RestResource> restResources = new TreeMap<>();
+		Map<String, JsonType> jsonTypes = new TreeMap<>();
+		Set<Class<?>> parsedTypes = new HashSet<>(); // remember which classes have already been parsed (since some will be parsed but not added to jsonTypes)
+		// store all types referenced by the REST resources (these will be parsed and added to jsonTypes)
+		Set<Class<?>> referencedTypes = new HashSet<>();
 
+		// parse resources in each package argument
 		for(String arg : args)
 			restResources.putAll(RestApiGenerator.parseRestResources(arg));
 
-		// get types referenced by REST resources
-		Set<Class<?>> referencedTypes = new HashSet<>();
+		// gather the types referenced by REST resources
 		for(RestResource restResource : restResources.values())
-			referencedTypes.addAll(restResource.getReferencedTypes());
-
-		// add subtypes of referenced types
-		for(Class<?> clazz : referencedTypes)
-			referencedTypes.addAll(JsonApiGenerator.inspectTypesRecursive(clazz));
-
-		// TODO: some types may reference other types that will need to be parsed, need to remember to parse them also
-
-		// parse referenced types for JSON properties
-		Map<String, JsonType> jsonTypes = new TreeMap<>();
-
-		for(Class<?> clazz : referencedTypes)
 		{
-			JsonType jsonType = JsonApiGenerator.parseType(clazz);
-			if(jsonType != null)
-				jsonTypes.put(clazz.getName(), jsonType);
+			for(Class<?> clazz : restResource.getReferencedTypes())
+				addReferencedType(clazz, referencedTypes);
+		}
+
+		// inspect referenced types until all have been parsed
+		while(!referencedTypes.isEmpty())
+		{
+			// gather types referenced by other types (types found while parsing other types)
+			Set<Class<?>> newlyReferencedTypes = new HashSet<>();
+
+			// parse referenced types for JSON properties
+			for(Class<?> clazz : referencedTypes)
+			{
+				// if clazz hasn't already been parsed
+				if(!parsedTypes.contains(clazz))
+				{
+					// parse the class for json properties
+					JsonType jsonType = JsonApiGenerator.parseType(clazz);
+
+					// add parsed type to parsedTypes set
+					parsedTypes.add(clazz);
+
+					// if json type was found
+					if(jsonType != null)
+					{
+						// add parsed type to jsonTypes map
+						jsonTypes.put(clazz.getName(), jsonType);
+
+						// add any new references to newlyReferencedTypes set
+						newlyReferencedTypes.addAll(jsonType.getReferencedTypes());
+					}
+				}
+			}
+
+			// we've parsed all previous referenced types, clear the set
+			referencedTypes.clear();
+
+			// add newlyReferencedTypes to referenced types set
+			for(Class<?> clazz : newlyReferencedTypes)
+			{
+				// if clazz hasn't already been parsed
+				if(!parsedTypes.contains(clazz))
+				{
+					addReferencedType(clazz, referencedTypes);
+				}
+			}
 		}
 
 		JsonApiGenerator.buildInheritanceRelations(jsonTypes);
@@ -64,5 +99,10 @@ public class ApiGenerator
 		{
 			e.printStackTrace();
 		}
+	}
+
+	private static void addReferencedType(Class<?> clazz, Set<Class<?>> referencedTypes)
+	{
+		referencedTypes.addAll(JsonApiGenerator.inspectTypesRecursive(clazz));
 	}
 }

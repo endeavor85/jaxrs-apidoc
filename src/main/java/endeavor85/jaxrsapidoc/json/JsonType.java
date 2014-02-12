@@ -3,11 +3,11 @@ package endeavor85.jaxrsapidoc.json;
 import java.util.HashSet;
 import java.util.Set;
 
-public class JsonType
+public abstract class JsonType
 {
-	boolean			abstractType;
-	Class<?>		type;
-	Set<JsonType>	subTypes	= new HashSet<>();
+	protected boolean		abstractType;
+	private Class<?>		type;
+	private Set<JsonType>	innerTypes	= new HashSet<>();
 
 	public JsonType(Class<?> type)
 	{
@@ -24,23 +24,10 @@ public class JsonType
 		return abstractType;
 	}
 
-	public void setAbstractType(boolean abstractType)
+	public Set<JsonType> getInnerTypes()
 	{
-		this.abstractType = abstractType;
+		return innerTypes;
 	}
 
-	public Set<JsonType> getSubTypes()
-	{
-		return subTypes;
-	}
-
-	public void setSubTypes(Set<JsonType> subTypes)
-	{
-		this.subTypes = subTypes;
-	}
-
-	public void setType(Class<?> type)
-	{
-		this.type = type;
-	}
+	public abstract Set<Class<?>> getReferencedTypes();
 }

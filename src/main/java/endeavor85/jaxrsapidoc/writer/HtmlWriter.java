@@ -9,6 +9,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import endeavor85.jaxrsapidoc.SanitizedType;
 import endeavor85.jaxrsapidoc.ViewClassUtil;
+import endeavor85.jaxrsapidoc.generics.Variable;
+import endeavor85.jaxrsapidoc.generics.Wildcard;
 import endeavor85.jaxrsapidoc.json.JsonClass;
 import endeavor85.jaxrsapidoc.json.JsonEnum;
 import endeavor85.jaxrsapidoc.json.JsonProperty;
@@ -33,7 +35,7 @@ public class HtmlWriter extends ApiDocWriter
 	@Override
 	protected void writeResource(RestResource resource) throws IOException
 	{
-		writer.write("<h3 id='" + escapeAnchorId(resource.getResourceClass().getName()) + "'>" + resource.getResourceClass().getSimpleName() + "</h3>\n\n");
+		writer.write("<h3 id='" + getHyperlinkId(resource.getResourceClass()) + "'>" + resource.getResourceClass().getSimpleName() + "</h3>\n\n");
 		writer.write("<table>\n");
 		writer.write("  <tr><th>Method</th><th>URL</th><th>Consumes</th><th>Produces</th></tr>\n");
 		for(RestMethod apiMethod : resource.getApiMethods())
@@ -50,10 +52,10 @@ public class HtmlWriter extends ApiDocWriter
 		writer.write("<td>" + (method.getConsumes() == null ? "" : ("<tt>" + StringUtils.join(method.getConsumes(), "</tt><br/><tt>") + "</tt>")) + "</td>");
 		writer.write("<td>" + (method.getProduces() == null ? "" : ("<tt>" + StringUtils.join(method.getProduces(), "</tt><br/><tt>") + "</tt>")) + "</td>");
 		writer.write("</tr>\n  <tr>\n    <td colspan=\"4\">\n");
-		
+
 		// store whether any params are written so we can draw a line between parameters and return type if both are present
 		boolean wroteParams = false;
-		
+
 		if(!method.getPathParams().isEmpty())
 		{
 			writer.write("      Path Parameters:\n");
@@ -81,7 +83,7 @@ public class HtmlWriter extends ApiDocWriter
 			writer.write("      Returns:\n      <ul>\n");
 			if(method.getReturnType() != null)
 			{
-				writer.write("        <li><tt>" + escapeHTML(method.getReturnType().toString()) + "</tt>");
+				writer.write("        <li><tt>" + getTypeWithHyperlinks(method.getReturnType()) + "</tt>");
 				if(method.getJsonView() != null)
 					writer.write(" (view: <tt>" + ViewClassUtil.getSanitizedViewClassName(method.getJsonView()) + "</tt>)");
 				writer.write("</li>\n");
@@ -96,7 +98,7 @@ public class HtmlWriter extends ApiDocWriter
 	{
 		writer.write("      <ul>\n");
 		for(RestParam param : params)
-			writer.write("        <li>" + (param.getValue() == null ? "" : "<tt>" + param.getValue() + "</tt> : ") + "<tt>" + escapeHTML(param.getType().toString()) + "</tt></li>\n");
+			writer.write("        <li>" + (param.getValue() == null ? "" : "<tt>" + param.getValue() + "</tt> : ") + "<tt>" + getTypeWithHyperlinks(param.getType()) + "</tt></li>\n");
 		writer.write("      </ul>\n");
 	}
 
@@ -109,7 +111,7 @@ public class HtmlWriter extends ApiDocWriter
 	@Override
 	protected void writeType(JsonType type) throws IOException
 	{
-		writer.write("<h3 id='" + escapeAnchorId(type.getType().getName()) + "'> " + (type.isAbstractType() ? emphasis(type.getType().getSimpleName()) : type.getType().getSimpleName()) + "</h3>\n");
+		writer.write("<h3 id='" + getHyperlinkId(type.getType()) + "'>" + (type.isAbstractType() ? emphasis(type.getType().getSimpleName()) : type.getType().getSimpleName()) + "</h3>\n");
 		writer.write(emphasis("(" + type.getType().getName() + ")") + "\n\n");
 
 		if(type instanceof JsonClass)
@@ -153,12 +155,12 @@ public class HtmlWriter extends ApiDocWriter
 			}
 
 			// for abstract types, check for implementors and list them
-			if(apiClass.isAbstractType() && !apiClass.getSubTypes().isEmpty())
+			if(apiClass.isAbstractType() && !apiClass.getInnerTypes().isEmpty())
 			{
 				writer.write("<h5>Implementors</h5>\n\n");
 				writer.write("<ul>\n");
-				for(JsonType subType : apiClass.getSubTypes())
-					writer.write("  <li>" + getHyperlinkFor(subType.getType()) + "</li>\n");
+				for(JsonType subType : apiClass.getInnerTypes())
+					writer.write("  <li>" + getClassHyperlink(subType.getType()) + "</li>\n");
 				writer.write("</ul>\n");
 			}
 		}
@@ -172,30 +174,44 @@ public class HtmlWriter extends ApiDocWriter
 	protected void writeTypeProperty(JsonClass apiClass, JsonProperty property) throws IOException
 	{
 		writer.write("  <tr><td><tt>" + property.getName() + "</tt></td>");
-		SanitizedType returnType = property.getType();
-		if(returnType != null && getTypes().containsKey(returnType.getBaseType().getName()))
-			writer.write("<td><tt>" + getHyperlinkFor(returnType.getBaseType()) + (returnType.isArray() ? "[]" : "") + "</tt></td>");
-		else
-			writer.write("<td><tt>" + escapeHTML(returnType.toString()) + "</tt></td>");
+		writer.write("<td><tt>" + getTypeWithHyperlinks(property.getType()) + "</tt></td>");
 		for(Class<?> viewClass : apiClass.getViewClasses())
 			writer.write("<td>" + (property.getViews().contains(viewClass) ? "&#x2713;" : "&nbsp;") + "</td>");
 		writer.write("</tr>\n");
 	}
 
-	protected String getHyperlinkFor(Class<?> clazz)
+	public String getTypeWithHyperlinks(SanitizedType type)
 	{
-		return "<a href='#" + clazz.getName() + "'>" + escapeHTML(clazz.getSimpleName()) + "</a>";
+		String baseName;
+		if(type.getBaseType().equals(Wildcard.class))
+			baseName = "?";
+		else if(type.getBaseType().equals(Variable.class))
+			baseName = "T";
+		else
+			baseName = getClassHyperlink(type.getBaseType());
+
+		// get hyperlinks for this type's parameterized types
+		List<String> paramTypesList = new ArrayList<>();
+		for(SanitizedType paramType : type.getParameterizedTypes())
+			paramTypesList.add(getTypeWithHyperlinks(paramType));
+		
+		// example format: BaseClass<Any, ParamTypes, Recursive>[]
+		return baseName + (!type.getParameterizedTypes().isEmpty() ? "&lt;" + StringUtils.join(paramTypesList, ", ") + "&gt;" : "") + (type.isArray() ? "[]" : "");
 	}
 
-	protected String escapeHTML(String str)
+	protected String getClassHyperlink(Class<?> clazz)
 	{
-		return str.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+		String linkText = clazz.getSimpleName();
+
+		if(getTypes().containsKey(clazz.getName()))
+			return "<a href='#" + getHyperlinkId(clazz) + "'>" + linkText + "</a>";
+		else
+			return linkText;
 	}
 
-	protected String escapeAnchorId(String str)
+	protected String getHyperlinkId(Class<?> clazz)
 	{
-		// $ is not a valid id character, replace it with -
-		return str.replaceAll("\\$", "-");
+		return clazz.getSimpleName().replaceAll("\\.", "").replaceAll("\\$", "").toLowerCase();
 	}
 
 	protected String emphasis(String str)

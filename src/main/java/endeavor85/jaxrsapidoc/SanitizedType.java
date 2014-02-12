@@ -1,5 +1,6 @@
 package endeavor85.jaxrsapidoc;
 
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -62,7 +63,10 @@ public class SanitizedType
 			{
 				return new SanitizedType(rawType);
 			}
-
+		}
+		else if(type instanceof GenericArrayType)
+		{
+			return SanitizedType.fromGenericArrayType((GenericArrayType) type);
 		}
 		// just a plain old Java class
 		else
@@ -74,6 +78,13 @@ public class SanitizedType
 	public static SanitizedType fromParameterizedType(ParameterizedType type)
 	{
 		return new SanitizedType(type);
+	}
+
+	public static SanitizedType fromGenericArrayType(GenericArrayType type)
+	{
+		SanitizedType sanitizedType = SanitizedType.fromType(type.getGenericComponentType());
+		sanitizedType.isArray = true;
+		return sanitizedType;
 	}
 
 	protected SanitizedType(ParameterizedType type)
@@ -95,6 +106,10 @@ public class SanitizedType
 			else if(actualTypeArgument instanceof ParameterizedType)
 			{
 				parameterizedTypes.add(new SanitizedType((ParameterizedType) actualTypeArgument));
+			}
+			else if(actualTypeArgument instanceof GenericArrayType)
+			{
+				parameterizedTypes.add(SanitizedType.fromGenericArrayType((GenericArrayType) actualTypeArgument));
 			}
 			else
 			{

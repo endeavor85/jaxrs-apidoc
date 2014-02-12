@@ -106,7 +106,7 @@ public class JsonApiGenerator
 				if(parentType != null && parentType instanceof JsonClass)
 				{
 					JsonClass parentApiType = (JsonClass) parentType;
-					parentApiType.getSubTypes().add(apiClass);
+					parentApiType.getInnerTypes().add(apiClass);
 					// copy json type property from parent (will need to display this along with this type's specific name value)
 					apiClass.setJsonTypeProperty(parentApiType.getJsonTypeProperty());
 

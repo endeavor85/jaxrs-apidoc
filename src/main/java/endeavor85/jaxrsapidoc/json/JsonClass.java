@@ -17,9 +17,9 @@ import endeavor85.jaxrsapidoc.SanitizedType;
 public class JsonClass extends JsonType
 {
 	Map<String, JsonProperty>	properties	= new TreeMap<>();
-	Set<Class<?>>					viewClasses	= new HashSet<>();
-	String							jsonTypeProperty;
-	String							jsonTypeName; // string value used to indicate this type when deserializing super type
+	Set<Class<?>>				viewClasses	= new HashSet<>();
+	String						jsonTypeProperty;
+	String						jsonTypeName;					// string value used to indicate this type when deserializing super type
 
 	public JsonClass(Class<?> clazz)
 	{
@@ -29,7 +29,7 @@ public class JsonClass extends JsonType
 	public JsonClass(Class<?> clazz, boolean includeAllGetters)
 	{
 		super(clazz);
-		abstractType = Modifier.isAbstract(type.getModifiers());
+		abstractType = Modifier.isAbstract(getType().getModifiers());
 
 		// if abstract, find type property
 		if(abstractType)
@@ -100,39 +100,6 @@ public class JsonClass extends JsonType
 		}
 	}
 
-	private List<Class<?>> getViews(Class<?> viewClass)
-	{
-		List<Class<?>> views = new ArrayList<Class<?>>();
-		Class<?> declaringClass = viewClass.getDeclaringClass();
-		Class<?> possibleViews[] = null;
-
-		if(declaringClass != null)
-		{
-			possibleViews = declaringClass.getDeclaredClasses();
-
-			for(Class<?> possibleView : possibleViews)
-			{
-				if(viewClass.isAssignableFrom(possibleView))
-					views.add(possibleView);
-			}
-		}
-		else
-			views.add(viewClass);
-
-		return views;
-	}
-
-	private boolean isGetter(Method method)
-	{
-		if(!method.getName().startsWith("get") && !method.getName().startsWith("is"))
-			return false;
-		if(method.getParameterTypes().length != 0)
-			return false;
-		if(void.class.equals(method.getReturnType()))
-			return false;
-		return true;
-	}
-
 	public Map<String, JsonProperty> getProperties()
 	{
 		return properties;
@@ -161,5 +128,49 @@ public class JsonClass extends JsonType
 	public void setJsonTypeName(String jsonTypeName)
 	{
 		this.jsonTypeName = jsonTypeName;
+	}
+
+	@Override
+	public Set<Class<?>> getReferencedTypes()
+	{
+		Set<Class<?>> referencedTypes = new HashSet<>();
+		
+		for(JsonProperty property : properties.values())
+			referencedTypes.addAll(property.getType().getReferencedTypes());
+		
+		return referencedTypes;
+	}
+
+	private static boolean isGetter(Method method)
+	{
+		if(!method.getName().startsWith("get") && !method.getName().startsWith("is"))
+			return false;
+		if(method.getParameterTypes().length != 0)
+			return false;
+		if(void.class.equals(method.getReturnType()))
+			return false;
+		return true;
+	}
+
+	private static List<Class<?>> getViews(Class<?> viewClass)
+	{
+		List<Class<?>> views = new ArrayList<Class<?>>();
+		Class<?> declaringClass = viewClass.getDeclaringClass();
+		Class<?> possibleViews[] = null;
+	
+		if(declaringClass != null)
+		{
+			possibleViews = declaringClass.getDeclaredClasses();
+	
+			for(Class<?> possibleView : possibleViews)
+			{
+				if(viewClass.isAssignableFrom(possibleView))
+					views.add(possibleView);
+			}
+		}
+		else
+			views.add(viewClass);
+	
+		return views;
 	}
 }
