@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.rest;
+package endeavor85.jaxrsapidoc.rest;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;

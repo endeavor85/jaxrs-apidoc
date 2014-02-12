@@ -1,9 +1,9 @@
-package endeavor85.jsonapigen.json;
+package endeavor85.jaxrsapidoc.json;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import endeavor85.jsonapigen.SanitizedType;
+import endeavor85.jaxrsapidoc.SanitizedType;
 
 public class JsonProperty
 {

@@ -14,7 +14,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import endeavor85.jsonapigen.SanitizedType;
+import endeavor85.jaxrsapidoc.SanitizedType;
 
 public class TestSanitizedType
 {

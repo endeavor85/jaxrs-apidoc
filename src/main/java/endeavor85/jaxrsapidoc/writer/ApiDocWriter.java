@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.writer;
+package endeavor85.jaxrsapidoc.writer;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -7,12 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import endeavor85.jsonapigen.json.JsonClass;
-import endeavor85.jsonapigen.json.JsonProperty;
-import endeavor85.jsonapigen.json.JsonType;
-import endeavor85.jsonapigen.rest.RestMethod;
-import endeavor85.jsonapigen.rest.RestParam;
-import endeavor85.jsonapigen.rest.RestResource;
+import endeavor85.jaxrsapidoc.json.JsonClass;
+import endeavor85.jaxrsapidoc.json.JsonProperty;
+import endeavor85.jaxrsapidoc.json.JsonType;
+import endeavor85.jaxrsapidoc.rest.RestMethod;
+import endeavor85.jaxrsapidoc.rest.RestParam;
+import endeavor85.jaxrsapidoc.rest.RestResource;
 
 public abstract class ApiDocWriter
 {

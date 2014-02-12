@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.json;
+package endeavor85.jaxrsapidoc.json;
 
 import java.util.ArrayList;
 import java.util.List;

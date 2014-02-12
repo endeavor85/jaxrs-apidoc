@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.rest;
+package endeavor85.jaxrsapidoc.rest;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -19,7 +19,7 @@ import javax.ws.rs.Produces;
 
 import com.fasterxml.jackson.annotation.JsonView;
 
-import endeavor85.jsonapigen.SanitizedType;
+import endeavor85.jaxrsapidoc.SanitizedType;
 
 public class RestMethod implements Comparable<RestMethod>
 {

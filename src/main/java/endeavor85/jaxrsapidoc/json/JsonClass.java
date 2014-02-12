@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.json;
+package endeavor85.jaxrsapidoc.json;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -12,7 +12,7 @@ import java.util.TreeMap;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonView;
 
-import endeavor85.jsonapigen.SanitizedType;
+import endeavor85.jaxrsapidoc.SanitizedType;
 
 public class JsonClass extends JsonType
 {

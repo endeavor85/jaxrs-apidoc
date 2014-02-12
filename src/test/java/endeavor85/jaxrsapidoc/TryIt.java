@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.Vector;
 
-import endeavor85.jsonapigen.SanitizedType;
+import endeavor85.jaxrsapidoc.SanitizedType;
 
 public class TryIt
 {

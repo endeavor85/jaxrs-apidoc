@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen;
+package endeavor85.jaxrsapidoc;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -6,12 +6,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import endeavor85.jsonapigen.json.JsonApiGenerator;
-import endeavor85.jsonapigen.json.JsonType;
-import endeavor85.jsonapigen.rest.RestApiGenerator;
-import endeavor85.jsonapigen.rest.RestResource;
-import endeavor85.jsonapigen.writer.ApiDocWriter;
-import endeavor85.jsonapigen.writer.HtmlWriter;
+import endeavor85.jaxrsapidoc.json.JsonApiGenerator;
+import endeavor85.jaxrsapidoc.json.JsonType;
+import endeavor85.jaxrsapidoc.rest.RestApiGenerator;
+import endeavor85.jaxrsapidoc.rest.RestResource;
+import endeavor85.jaxrsapidoc.writer.ApiDocWriter;
+import endeavor85.jaxrsapidoc.writer.HtmlWriter;
 
 public class ApiGenerator
 {

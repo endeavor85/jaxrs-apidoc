@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.rest;
+package endeavor85.jaxrsapidoc.rest;
 
 import java.io.IOException;
 import java.util.Map;
@@ -6,8 +6,8 @@ import java.util.TreeMap;
 
 import com.google.common.reflect.ClassPath;
 
-import endeavor85.jsonapigen.writer.ApiDocWriter;
-import endeavor85.jsonapigen.writer.HtmlWriter;
+import endeavor85.jaxrsapidoc.writer.ApiDocWriter;
+import endeavor85.jaxrsapidoc.writer.HtmlWriter;
 
 public class RestApiGenerator
 {

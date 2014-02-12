@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.rest;
+package endeavor85.jaxrsapidoc.rest;
 
 import java.lang.annotation.Annotation;
 
@@ -6,7 +6,7 @@ import javax.ws.rs.FormParam;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
-import endeavor85.jsonapigen.SanitizedType;
+import endeavor85.jaxrsapidoc.SanitizedType;
 
 public class RestParam
 {

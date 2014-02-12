@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen.json;
+package endeavor85.jaxrsapidoc.json;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -9,8 +9,8 @@ import java.util.TreeMap;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.reflect.ClassPath;
 
-import endeavor85.jsonapigen.writer.ApiDocWriter;
-import endeavor85.jsonapigen.writer.HtmlWriter;
+import endeavor85.jaxrsapidoc.writer.ApiDocWriter;
+import endeavor85.jaxrsapidoc.writer.HtmlWriter;
 
 public class JsonApiGenerator
 {

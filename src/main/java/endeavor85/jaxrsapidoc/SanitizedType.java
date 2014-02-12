@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen;
+package endeavor85.jaxrsapidoc;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -14,8 +14,8 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
-import endeavor85.jsonapigen.generics.Variable;
-import endeavor85.jsonapigen.generics.Wildcard;
+import endeavor85.jaxrsapidoc.generics.Variable;
+import endeavor85.jaxrsapidoc.generics.Wildcard;
 
 public class SanitizedType
 {

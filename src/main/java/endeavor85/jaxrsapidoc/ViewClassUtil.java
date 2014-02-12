@@ -1,4 +1,4 @@
-package endeavor85.jsonapigen;
+package endeavor85.jaxrsapidoc;
 
 public class ViewClassUtil
 {
