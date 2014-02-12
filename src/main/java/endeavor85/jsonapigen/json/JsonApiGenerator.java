@@ -2,83 +2,110 @@ package endeavor85.jsonapigen.json;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.reflect.ClassPath;
+
+import endeavor85.jsonapigen.writer.ApiDocWriter;
+import endeavor85.jsonapigen.writer.HtmlWriter;
 
 public class JsonApiGenerator
 {
 	public static void main(String[] args)
 	{
 		if(args.length > 0)
-			new JsonApiGenerator(args);
-		else
-			System.err.println("Add package name arguments (space-separated). E.g., java JsonApiGenerator com.example.package com.example.xyz");
-	}
-
-	Map<String, JsonApiType>	jsonType	= new TreeMap<>();
-	Set<Class<?>>				parsedTypes	= new HashSet<>();
-
-	public JsonApiGenerator(String[] rootPackages)
-	{
-		List<Class<?>> types = new ArrayList<>();
-
-		// inspect packages for types
-		for(String rootPackageName : rootPackages)
 		{
+			Map<String, JsonType> jsonTypes = new TreeMap<>();
+
+			// parse resources in each package argument
+			for(String arg : args)
+				jsonTypes.putAll(JsonApiGenerator.parsePackage(arg));
+
+			buildInheritanceRelations(jsonTypes);
+			
+			// print JSON type API
+			ApiDocWriter adw = new HtmlWriter(System.out);
+			adw.getTypes().putAll(jsonTypes);
 			try
 			{
-				ClassPath classpath = ClassPath.from(JsonApiGenerator.class.getClassLoader());
-				for(ClassPath.ClassInfo classInfo : classpath.getTopLevelClassesRecursive(rootPackageName))
-				{
-					// inspect top level class for inner classes (recursively)
-					Class<?> topLevelClass = classInfo.load();
-					types.addAll(inspectTypesRecursive(topLevelClass));
-				}
+				adw.writeTypeApi();
 			}
 			catch(IOException e)
 			{
 				e.printStackTrace();
 			}
 		}
+		else
+			System.err.println("Add package name arguments (space-separated). E.g., java JsonApiGenerator com.example.package com.example.xyz");
+	}
+
+	public static JsonType parseType(Class<?> clazz)
+	{
+		JsonType jsonType = null;
+
+		if(clazz.isEnum())
+		{
+			jsonType = new JsonEnum(clazz);
+		}
+		else
+		{
+			JsonClass jsonClass = new JsonClass(clazz);
+
+			// only include types that have json properties
+			if(!jsonClass.getProperties().isEmpty())
+				jsonType = jsonClass;
+		}
+
+		return jsonType;
+	}
+
+	public static Map<String, JsonType> parsePackage(String rootPackage)
+	{
+		Map<String, JsonType> jsonTypes = new TreeMap<>();
+		List<Class<?>> types = new ArrayList<>();
+
+		// inspect package for types
+		try
+		{
+			ClassPath classpath = ClassPath.from(JsonApiGenerator.class.getClassLoader());
+			for(ClassPath.ClassInfo classInfo : classpath.getTopLevelClassesRecursive(rootPackage))
+			{
+				// inspect top level class for inner classes (recursively)
+				Class<?> topLevelClass = classInfo.load();
+				types.addAll(inspectTypesRecursive(topLevelClass));
+			}
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
 
 		// parse included classes
 		for(Class<?> type : types)
 		{
-			if(type.isEnum())
-			{
-				jsonType.put(type.getSimpleName(), new JsonApiEnum(type));
-				parsedTypes.add(type);
-			}
-			else
-			{
-				JsonApiClass classType = new JsonApiClass(type);
-
-				// only include types that have json properties
-				if(!classType.getProperties().isEmpty())
-				{
-					jsonType.put(type.getSimpleName(), classType);
-					parsedTypes.add(type);
-				}
-			}
+			JsonType jsonType = parseType(type);
+			if(jsonType != null)
+				jsonTypes.put(type.getName(), jsonType);
 		}
 
-		// check inheritance
-		for(JsonApiType type : jsonType.values())
+		return jsonTypes;
+	}
+
+	public static void buildInheritanceRelations(Map<String, JsonType> jsonTypes)
+	{
+		for(JsonType type : jsonTypes.values())
 		{
-			if(type instanceof JsonApiClass)
+			if(type instanceof JsonClass)
 			{
-				JsonApiClass apiClass = (JsonApiClass) type;
+				JsonClass apiClass = (JsonClass) type;
 				Class<?> superclass = apiClass.getType().getSuperclass();
-				JsonApiType parentType = jsonType.get(superclass.getSimpleName());
-				if(parentType != null && parentType instanceof JsonApiClass)
+				JsonType parentType = jsonTypes.get(superclass.getName());
+				if(parentType != null && parentType instanceof JsonClass)
 				{
-					JsonApiClass parentApiType = (JsonApiClass) parentType;
+					JsonClass parentApiType = (JsonClass) parentType;
 					parentApiType.getSubTypes().add(apiClass);
 					// copy json type property from parent (will need to display this along with this type's specific name value)
 					apiClass.setJsonTypeProperty(parentApiType.getJsonTypeProperty());
@@ -91,15 +118,6 @@ public class JsonApiGenerator
 					}
 				}
 			}
-		}
-
-		// write markdown
-		for(JsonApiType type : jsonType.values())
-		{
-			if(type instanceof JsonApiClass)
-				System.out.print(((JsonApiClass) type).toString(parsedTypes));
-			else
-				System.out.print(type.toString());
 		}
 	}
 

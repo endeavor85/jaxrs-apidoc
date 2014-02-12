@@ -5,7 +5,7 @@ import java.util.List;
 
 import endeavor85.jsonapigen.SanitizedType;
 
-public class JsonApiProperty
+public class JsonProperty
 {
 	String			name;
 	SanitizedType	type;

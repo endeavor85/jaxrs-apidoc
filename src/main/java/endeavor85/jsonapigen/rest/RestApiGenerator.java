@@ -1,10 +1,13 @@
 package endeavor85.jsonapigen.rest;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import com.google.common.reflect.ClassPath;
+
+import endeavor85.jsonapigen.writer.ApiDocWriter;
+import endeavor85.jsonapigen.writer.HtmlWriter;
 
 public class RestApiGenerator
 {
@@ -12,23 +15,31 @@ public class RestApiGenerator
 	{
 		if(args.length > 0)
 		{
-			List<RestApiResource> restResources = new ArrayList<>();
+			Map<String, RestResource> restResources = new TreeMap<>();
 
 			// parse resources in each package argument
 			for(String arg : args)
-				restResources.addAll(RestApiGenerator.parseRestResources(arg));
+				restResources.putAll(RestApiGenerator.parseRestResources(arg));
 
 			// print REST resource API
-			for(RestApiResource restResource : restResources)
-				System.out.println(restResource.toString());
+			ApiDocWriter adw = new HtmlWriter(System.out);
+			adw.getResources().putAll(restResources);
+			try
+			{
+				adw.writeResourceApi();
+			}
+			catch(IOException e)
+			{
+				e.printStackTrace();
+			}
 		}
 		else
 			System.err.println("Add package name arguments (space-separated). E.g., java RestApiGenerator com.example.package com.example.xyz");
 	}
 
-	public static List<RestApiResource> parseRestResources(String rootPackageName)
+	public static Map<String, RestResource> parseRestResources(String rootPackageName)
 	{
-		List<RestApiResource> restResources = new ArrayList<>();
+		Map<String, RestResource> restResources = new TreeMap<>();
 
 		try
 		{
@@ -37,9 +48,9 @@ public class RestApiGenerator
 			{
 				Class<?> clazz = classInfo.load();
 
-				RestApiResource restResource = RestApiResource.parseClass(clazz);
+				RestResource restResource = RestResource.parseClass(clazz);
 				if(restResource != null)
-					restResources.add(restResource);
+					restResources.put(clazz.getName(), restResource);
 			}
 		}
 		catch(IOException e)

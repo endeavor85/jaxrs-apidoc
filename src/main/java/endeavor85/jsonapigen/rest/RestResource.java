@@ -9,13 +9,13 @@ import java.util.Set;
 
 import javax.ws.rs.Path;
 
-public class RestApiResource
+public class RestResource
 {
 	private Class<?>			resourceClass;
 	private String				resourceRootUrl	= null;
-	private List<RestApiMethod>	apiMethods		= new ArrayList<RestApiMethod>();
+	private List<RestMethod>	apiMethods		= new ArrayList<RestMethod>();
 
-	private RestApiResource(Class<?> clazz)
+	private RestResource(Class<?> clazz)
 	{
 		resourceClass = clazz;
 
@@ -29,7 +29,7 @@ public class RestApiResource
 			// parse each of the resource's methods
 			for(Method method : clazz.getMethods())
 			{
-				RestApiMethod apiMethod = RestApiMethod.parseMethod(method, resourceRootUrl);
+				RestMethod apiMethod = RestMethod.parseMethod(method, resourceRootUrl);
 
 				// if method is a REST method, add it to apiMethods
 				if(apiMethod != null)
@@ -41,9 +41,9 @@ public class RestApiResource
 		}
 	}
 
-	public static RestApiResource parseClass(Class<?> clazz)
+	public static RestResource parseClass(Class<?> clazz)
 	{
-		RestApiResource restResource = new RestApiResource(clazz);
+		RestResource restResource = new RestResource(clazz);
 
 		if(restResource != null && restResource.getResourceUrl() != null)
 			return restResource;
@@ -61,12 +61,12 @@ public class RestApiResource
 		this.resourceRootUrl = resourceUrl;
 	}
 
-	public List<RestApiMethod> getApiMethods()
+	public List<RestMethod> getApiMethods()
 	{
 		return apiMethods;
 	}
 
-	public void setApiMethods(List<RestApiMethod> apiMethods)
+	public void setApiMethods(List<RestMethod> apiMethods)
 	{
 		this.apiMethods = apiMethods;
 	}
@@ -75,20 +75,29 @@ public class RestApiResource
 	{
 		Set<Class<?>> referencedTypes = new HashSet<>();
 
-		for(RestApiMethod apiMethod : apiMethods)
+		for(RestMethod apiMethod : apiMethods)
 			referencedTypes.addAll(apiMethod.getReferencedTypes());
 
 		return referencedTypes;
 	}
 
-	public String toString()
+	public Class<?> getResourceClass()
 	{
-		StringBuilder table = new StringBuilder("### " + resourceClass.getSimpleName() + "\n\n");
-		table.append("<table>\n");
-		table.append("  <tr><th>Method</th><th>URL</th><th>Consumes</th><th>Produces</th></tr>\n");
-		for(RestApiMethod apiMethod : apiMethods)
-			table.append(apiMethod.toTableRow());
-		table.append("</table>\n");
-		return table.toString();
+		return resourceClass;
+	}
+
+	public void setResourceClass(Class<?> resourceClass)
+	{
+		this.resourceClass = resourceClass;
+	}
+
+	public String getResourceRootUrl()
+	{
+		return resourceRootUrl;
+	}
+
+	public void setResourceRootUrl(String resourceRootUrl)
+	{
+		this.resourceRootUrl = resourceRootUrl;
 	}
 }
