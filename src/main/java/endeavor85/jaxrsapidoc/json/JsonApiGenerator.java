@@ -2,9 +2,9 @@ package endeavor85.jaxrsapidoc.json;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.reflect.ClassPath;
@@ -18,14 +18,14 @@ public class JsonApiGenerator
 	{
 		if(args.length > 0)
 		{
-			Map<String, JsonType> jsonTypes = new TreeMap<>();
+			Map<Class<?>, JsonType> jsonTypes = new HashMap<>();
 
 			// parse resources in each package argument
 			for(String arg : args)
 				jsonTypes.putAll(JsonApiGenerator.parsePackage(arg));
 
 			buildInheritanceRelations(jsonTypes);
-			
+
 			// print JSON type API
 			ApiDocWriter adw = new HtmlWriter(System.out);
 			adw.getTypes().putAll(jsonTypes);
@@ -62,9 +62,9 @@ public class JsonApiGenerator
 		return jsonType;
 	}
 
-	public static Map<String, JsonType> parsePackage(String rootPackage)
+	public static Map<Class<?>, JsonType> parsePackage(String rootPackage)
 	{
-		Map<String, JsonType> jsonTypes = new TreeMap<>();
+		Map<Class<?>, JsonType> jsonTypes = new HashMap<>();
 		List<Class<?>> types = new ArrayList<>();
 
 		// inspect package for types
@@ -88,13 +88,13 @@ public class JsonApiGenerator
 		{
 			JsonType jsonType = parseType(type);
 			if(jsonType != null)
-				jsonTypes.put(type.getName(), jsonType);
+				jsonTypes.put(type, jsonType);
 		}
 
 		return jsonTypes;
 	}
 
-	public static void buildInheritanceRelations(Map<String, JsonType> jsonTypes)
+	public static void buildInheritanceRelations(Map<Class<?>, JsonType> jsonTypes)
 	{
 		for(JsonType type : jsonTypes.values())
 		{
@@ -102,7 +102,7 @@ public class JsonApiGenerator
 			{
 				JsonClass apiClass = (JsonClass) type;
 				Class<?> superclass = apiClass.getType().getSuperclass();
-				JsonType parentType = jsonTypes.get(superclass.getName());
+				JsonType parentType = jsonTypes.get(superclass);
 				if(parentType != null && parentType instanceof JsonClass)
 				{
 					JsonClass parentApiType = (JsonClass) parentType;

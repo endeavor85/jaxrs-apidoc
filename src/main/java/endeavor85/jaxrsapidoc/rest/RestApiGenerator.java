@@ -1,8 +1,8 @@
 package endeavor85.jaxrsapidoc.rest;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 
 import com.google.common.reflect.ClassPath;
 
@@ -15,7 +15,7 @@ public class RestApiGenerator
 	{
 		if(args.length > 0)
 		{
-			Map<String, RestResource> restResources = new TreeMap<>();
+			Map<Class<?>, RestResource> restResources = new HashMap<>();
 
 			// parse resources in each package argument
 			for(String arg : args)
@@ -37,9 +37,9 @@ public class RestApiGenerator
 			System.err.println("Add package name arguments (space-separated). E.g., java RestApiGenerator com.example.package com.example.xyz");
 	}
 
-	public static Map<String, RestResource> parseRestResources(String rootPackageName)
+	public static Map<Class<?>, RestResource> parseRestResources(String rootPackageName)
 	{
-		Map<String, RestResource> restResources = new TreeMap<>();
+		Map<Class<?>, RestResource> restResources = new HashMap<>();
 
 		try
 		{
@@ -50,7 +50,7 @@ public class RestApiGenerator
 
 				RestResource restResource = RestResource.parseClass(clazz);
 				if(restResource != null)
-					restResources.put(clazz.getName(), restResource);
+					restResources.put(clazz, restResource);
 			}
 		}
 		catch(IOException e)

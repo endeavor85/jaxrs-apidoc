@@ -3,6 +3,7 @@ package endeavor85.jaxrsapidoc.writer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -16,8 +17,8 @@ import endeavor85.jaxrsapidoc.rest.RestResource;
 
 public abstract class ApiDocWriter
 {
-	Map<String, RestResource>		resources	= new TreeMap<>();
-	Map<String, JsonType>			types		= new TreeMap<>();
+	Map<Class<?>, RestResource>		resources	= new TreeMap<Class<?>, RestResource>(new ClassSimpleNameComparator());
+	Map<Class<?>, JsonType>			types		= new TreeMap<Class<?>, JsonType>(new ClassSimpleNameComparator());
 
 	protected OutputStreamWriter	writer;
 
@@ -26,12 +27,12 @@ public abstract class ApiDocWriter
 		writer = new OutputStreamWriter(os);
 	}
 
-	public Map<String, RestResource> getResources()
+	public Map<Class<?>, RestResource> getResources()
 	{
 		return resources;
 	}
 
-	public Map<String, JsonType> getTypes()
+	public Map<Class<?>, JsonType> getTypes()
 	{
 		return types;
 	}
@@ -81,4 +82,13 @@ public abstract class ApiDocWriter
 	protected abstract void writeType(JsonType type) throws IOException;
 
 	protected abstract void writeTypeProperty(JsonClass apiClass, JsonProperty property) throws IOException;
+
+	class ClassSimpleNameComparator implements Comparator<Class<?>>
+	{
+		@Override
+		public int compare(Class<?> o1, Class<?> o2)
+		{
+			return o1.getSimpleName().compareTo(o2.getSimpleName());
+		}
+	}
 }

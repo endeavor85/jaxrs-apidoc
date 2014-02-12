@@ -203,7 +203,7 @@ public class HtmlWriter extends ApiDocWriter
 	{
 		String linkText = clazz.getSimpleName();
 
-		if(getTypes().containsKey(clazz.getName()))
+		if(getTypes().containsKey(clazz))
 			return "<a href='#" + getHyperlinkId(clazz) + "'>" + linkText + "</a>";
 		else
 			return linkText;

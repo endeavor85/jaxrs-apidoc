@@ -1,10 +1,10 @@
 package endeavor85.jaxrsapidoc;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 
 import endeavor85.jaxrsapidoc.json.JsonApiGenerator;
 import endeavor85.jaxrsapidoc.json.JsonType;
@@ -15,6 +15,7 @@ import endeavor85.jaxrsapidoc.writer.HtmlWriter;
 
 public class ApiGenerator
 {
+
 	public static void main(String[] args)
 	{
 		if(args.length < 1)
@@ -24,8 +25,9 @@ public class ApiGenerator
 		}
 
 		// store REST resources and types
-		Map<String, RestResource> restResources = new TreeMap<>();
-		Map<String, JsonType> jsonTypes = new TreeMap<>();
+		Map<Class<?>, RestResource> restResources = new HashMap<>();
+		Map<Class<?>, JsonType> jsonTypes = new HashMap<>();
+
 		Set<Class<?>> parsedTypes = new HashSet<>(); // remember which classes have already been parsed (since some will be parsed but not added to jsonTypes)
 		// store all types referenced by the REST resources (these will be parsed and added to jsonTypes)
 		Set<Class<?>> referencedTypes = new HashSet<>();
@@ -63,7 +65,7 @@ public class ApiGenerator
 					if(jsonType != null)
 					{
 						// add parsed type to jsonTypes map
-						jsonTypes.put(clazz.getName(), jsonType);
+						jsonTypes.put(clazz, jsonType);
 
 						// add any new references to newlyReferencedTypes set
 						newlyReferencedTypes.addAll(jsonType.getReferencedTypes());
