@@ -9,7 +9,8 @@ public class JsonProperty
 {
 	String			name;
 	SanitizedType	type;
-	List<Class<?>>	views	= new ArrayList<>();
+	boolean			unwrapped	= false;
+	List<Class<?>>	views		= new ArrayList<>();
 
 	public String getName()
 	{
@@ -29,6 +30,16 @@ public class JsonProperty
 	public void setType(SanitizedType type)
 	{
 		this.type = type;
+	}
+
+	public boolean isUnwrapped()
+	{
+		return unwrapped;
+	}
+
+	public void setUnwrapped(boolean unwrapped)
+	{
+		this.unwrapped = unwrapped;
 	}
 
 	public List<Class<?>> getViews()

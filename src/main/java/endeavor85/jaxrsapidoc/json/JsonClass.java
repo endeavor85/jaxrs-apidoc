@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.annotation.JsonView;
 
 import endeavor85.jaxrsapidoc.SanitizedType;
@@ -48,11 +49,17 @@ public class JsonClass extends JsonType
 			JsonProperty property = new JsonProperty();
 
 			com.fasterxml.jackson.annotation.JsonProperty jsonProperty = method.getAnnotation(com.fasterxml.jackson.annotation.JsonProperty.class);
-
 			if(jsonProperty != null)
 			{
 				valid = true;
 				property.setName(jsonProperty.value());
+			}
+
+			JsonUnwrapped jsonUnwrapped = method.getAnnotation(JsonUnwrapped.class);
+			if(jsonUnwrapped != null)
+			{
+				valid = true;
+				property.setUnwrapped(true);
 			}
 
 			// if override flag is set, include all getters regardless of the presence of the @JsonProperty annotation
@@ -69,18 +76,27 @@ public class JsonClass extends JsonType
 			{
 				property.setType(returnType);
 
-				// if property name is still unknown, infer from method name
+				// if property name is unknown
 				if(property.getName() == null)
 				{
-					String methodName = method.getName();
+					// if property is unwrapped, just set a unique dummy name
+					if(property.isUnwrapped())
+					{
+						property.setName(returnType.toString() + "-unwrapped");
+					}
+					// if property is not unwrapped, infer property name from method name
+					else
+					{
+						String methodName = method.getName();
 
-					String strip = null;
-					if(methodName.startsWith("get"))
-						strip = methodName.substring(3);
-					else if(methodName.startsWith("is"))
-						strip = methodName.substring(2);
-					if(strip != null)
-						property.setName(Character.toLowerCase(strip.charAt(0)) + strip.substring(1));
+						String strip = null;
+						if(methodName.startsWith("get"))
+							strip = methodName.substring(3);
+						else if(methodName.startsWith("is"))
+							strip = methodName.substring(2);
+						if(strip != null)
+							property.setName(Character.toLowerCase(strip.charAt(0)) + strip.substring(1));
+					}
 				}
 
 				JsonView jsonView = method.getAnnotation(JsonView.class);
@@ -134,10 +150,10 @@ public class JsonClass extends JsonType
 	public Set<Class<?>> getReferencedTypes()
 	{
 		Set<Class<?>> referencedTypes = new HashSet<>();
-		
+
 		for(JsonProperty property : properties.values())
 			referencedTypes.addAll(property.getType().getReferencedTypes());
-		
+
 		return referencedTypes;
 	}
 
@@ -157,11 +173,11 @@ public class JsonClass extends JsonType
 		List<Class<?>> views = new ArrayList<Class<?>>();
 		Class<?> declaringClass = viewClass.getDeclaringClass();
 		Class<?> possibleViews[] = null;
-	
+
 		if(declaringClass != null)
 		{
 			possibleViews = declaringClass.getDeclaredClasses();
-	
+
 			for(Class<?> possibleView : possibleViews)
 			{
 				if(viewClass.isAssignableFrom(possibleView))
@@ -170,7 +186,7 @@ public class JsonClass extends JsonType
 		}
 		else
 			views.add(viewClass);
-	
+
 		return views;
 	}
 }

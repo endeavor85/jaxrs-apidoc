@@ -3,6 +3,7 @@ package endeavor85.jaxrsapidoc.writer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -148,8 +149,7 @@ public class HtmlWriter extends ApiDocWriter
 					writer.write("</tr>\n");
 				}
 
-				for(JsonProperty property : apiClass.getProperties().values())
-					writeTypeProperty(apiClass, property);
+				writeTypeProperties(apiClass, apiClass.getProperties().values());
 
 				writer.write("</table>\n\n");
 			}
@@ -167,6 +167,35 @@ public class HtmlWriter extends ApiDocWriter
 		else
 		{
 			writer.write("<tt>" + StringUtils.join(((JsonEnum) type).getValues(), "</tt> | <tt>") + "</tt>\n\n");
+		}
+	}
+
+	protected void writeTypeProperties(JsonClass apiClass, Collection<JsonProperty> properties) throws IOException
+	{
+		for(JsonProperty property : properties)
+		{
+			if(property.isUnwrapped())
+			{
+				JsonType unwrappedType = getTypes().get(property.getType().getBaseType());
+				if(unwrappedType != null)
+				{
+					if(unwrappedType instanceof JsonClass)
+					{
+						JsonClass unwrappedClass = (JsonClass) unwrappedType;
+						writeTypeProperties(unwrappedClass, unwrappedClass.getProperties().values());
+					}
+					else
+					{
+						System.err.println("Can't add unwrapped properties, type is enum: " + unwrappedType.getType());
+					}
+				}
+				else
+				{
+					System.err.println("Can't add unwrapped properties, unknown type: " + property.getType().getBaseType());
+				}
+			}
+			else
+				writeTypeProperty(apiClass, property);
 		}
 	}
 
@@ -194,7 +223,7 @@ public class HtmlWriter extends ApiDocWriter
 		List<String> paramTypesList = new ArrayList<>();
 		for(SanitizedType paramType : type.getParameterizedTypes())
 			paramTypesList.add(getTypeWithHyperlinks(paramType));
-		
+
 		// example format: BaseClass<Any, ParamTypes, Recursive>[]
 		return baseName + (!type.getParameterizedTypes().isEmpty() ? "&lt;" + StringUtils.join(paramTypesList, ", ") + "&gt;" : "") + (type.isArray() ? "[]" : "");
 	}
