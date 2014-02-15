@@ -3,8 +3,10 @@ package endeavor85.jaxrsapidoc.json;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.reflect.ClassPath;
@@ -18,11 +20,13 @@ public class JsonApiGenerator
 	{
 		if(args.length > 0)
 		{
-			Map<Class<?>, JsonType> jsonTypes = new HashMap<>();
+			Set<Class<?>> types = new HashSet<>();
 
 			// parse resources in each package argument
 			for(String arg : args)
-				jsonTypes.putAll(JsonApiGenerator.parsePackage(arg));
+				types.addAll(JsonApiGenerator.searchPackageForTypes(arg));
+
+			Map<Class<?>, JsonType> jsonTypes = parseTypes(types);
 
 			buildInheritanceRelations(jsonTypes);
 
@@ -62,10 +66,9 @@ public class JsonApiGenerator
 		return jsonType;
 	}
 
-	public static Map<Class<?>, JsonType> parsePackage(String rootPackage)
+	public static Set<Class<?>> searchPackageForTypes(String rootPackage)
 	{
-		Map<Class<?>, JsonType> jsonTypes = new HashMap<>();
-		List<Class<?>> types = new ArrayList<>();
+		Set<Class<?>> types = new HashSet<>();
 
 		// inspect package for types
 		try
@@ -82,6 +85,13 @@ public class JsonApiGenerator
 		{
 			e.printStackTrace();
 		}
+
+		return types;
+	}
+
+	public static Map<Class<?>, JsonType> parseTypes(Set<Class<?>> types)
+	{
+		Map<Class<?>, JsonType> jsonTypes = new HashMap<>();
 
 		// parse included classes
 		for(Class<?> type : types)

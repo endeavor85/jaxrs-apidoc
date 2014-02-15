@@ -42,6 +42,10 @@ public class ApiGenerator
 			for(Class<?> clazz : restResource.getReferencedTypes())
 				addReferencedType(clazz, referencedTypes);
 		}
+		
+		// search for types in each package argument (useful when only an abstract type is explicitly referenced, this will locate concrete types if they are within the given packages)
+		for(String arg : args)
+			referencedTypes.addAll(JsonApiGenerator.searchPackageForTypes(arg));
 
 		// inspect referenced types until all have been parsed
 		while(!referencedTypes.isEmpty())
