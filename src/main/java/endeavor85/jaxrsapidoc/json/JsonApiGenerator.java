@@ -59,7 +59,7 @@ public class JsonApiGenerator
 			JsonClass jsonClass = new JsonClass(clazz);
 
 			// only include types that have json properties
-			if(!jsonClass.getProperties().isEmpty())
+			if(!jsonClass.getProperties().isEmpty() || jsonClass.getJsonTypeProperty() != null)
 				jsonType = jsonClass;
 		}
 

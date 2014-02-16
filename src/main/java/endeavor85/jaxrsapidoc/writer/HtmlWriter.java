@@ -119,7 +119,7 @@ public class HtmlWriter extends ApiDocWriter
 		{
 			JsonClass apiClass = (JsonClass) type;
 
-			if(!apiClass.getProperties().isEmpty())
+			if(!apiClass.getProperties().isEmpty() || apiClass.getJsonTypeProperty() != null)
 			{
 				List<String> viewNames = new ArrayList<String>(apiClass.getViewClasses().size());
 				for(Class<?> viewClass : apiClass.getViewClasses())
