@@ -1,3 +1,5 @@
+Found [Swagger](https://github.com/wordnik/swagger-core), an alternative
+
 json-api-gen
 ============
 
